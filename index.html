@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harwich World Cup Sweepstake 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyAAPzSjiLcyRbmE86IXUmalue-wDVGm23M",
+    authDomain:        "harwichsweepstake.firebaseapp.com",
+    databaseURL:       "https://harwichsweepstake-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "harwichsweepstake",
+    storageBucket:     "harwichsweepstake.firebasestorage.app",
+    messagingSenderId: "137274261696",
+    appId:             "1:137274261696:web:89a787279cd433abb1f231",
+    measurementId:     "G-BB0LGNHJJ1"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  window.__firebase = {
+    db, ref,
+    set:     (path, val) => set(ref(db, path), val),
+    update:  (path, val) => update(ref(db, path), val),
+    onValue: (path, cb)  => onValue(ref(db, path), snap => cb(snap.val())),
+  };
+  window.__firebaseReady = true;
+  window.dispatchEvent(new Event("firebase-ready"));
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1f17; color: #fff; font-family: 'Inter', sans-serif; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(255,255,255,0.02) 60px,rgba(255,255,255,0.02) 61px);
+  }
+  @keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  @keyframes cardIn   { from{opacity:0;transform:scale(0.6) rotateY(90deg)} to{opacity:1;transform:scale(1) rotateY(0deg)} }
+  @keyframes spinBall { from{transform:rotate(0deg) scale(1.2)} to{transform:rotate(360deg) scale(1.2)} }
+  @keyframes floatIn  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes shimmer  { 0%,100%{opacity:0.7} 50%{opacity:1} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin     { to{transform:rotate(360deg)} }
+  select { appearance: auto; }
+  #root  { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const ADMIN_PIN = "180616";
+
+// World Cup 2026: 12 groups of 4
+const ALL_TEAMS = [
+  // Group A
+  { name:"Mexico",          flag:"🇲🇽", group:"A" }, { name:"South Africa",  flag:"🇿🇦", group:"A" },
+  { name:"South Korea",     flag:"🇰🇷", group:"A" }, { name:"Czechia",       flag:"🇨🇿", group:"A" },
+  // Group B
+  { name:"Canada",          flag:"🇨🇦", group:"B" }, { name:"Switzerland",   flag:"🇨🇭", group:"B" },
+  { name:"Qatar",           flag:"🇶🇦", group:"B" }, { name:"Bosnia & Herz.",flag:"🇧🇦", group:"B" },
+  // Group C
+  { name:"Brazil",          flag:"🇧🇷", group:"C" }, { name:"Morocco",       flag:"🇲🇦", group:"C" },
+  { name:"Haiti",           flag:"🇭🇹", group:"C" }, { name:"Scotland",      flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", group:"C" },
+  // Group D
+  { name:"USA",             flag:"🇺🇸", group:"D" }, { name:"Paraguay",      flag:"🇵🇾", group:"D" },
+  { name:"Australia",       flag:"🇦🇺", group:"D" }, { name:"Türkiye",       flag:"🇹🇷", group:"D" },
+  // Group E
+  { name:"Germany",         flag:"🇩🇪", group:"E" }, { name:"Curaçao",       flag:"🇨🇼", group:"E" },
+  { name:"Ivory Coast",     flag:"🇨🇮", group:"E" }, { name:"Ecuador",       flag:"🇪🇨", group:"E" },
+  // Group F
+  { name:"Netherlands",     flag:"🇳🇱", group:"F" }, { name:"Japan",         flag:"🇯🇵", group:"F" },
+  { name:"Sweden",          flag:"🇸🇪", group:"F" }, { name:"Tunisia",       flag:"🇹🇳", group:"F" },
+  // Group G
+  { name:"Belgium",         flag:"🇧🇪", group:"G" }, { name:"Egypt",         flag:"🇪🇬", group:"G" },
+  { name:"Iran",            flag:"🇮🇷", group:"G" }, { name:"New Zealand",   flag:"🇳🇿", group:"G" },
+  // Group H
+  { name:"Spain",           flag:"🇪🇸", group:"H" }, { name:"Cape Verde",    flag:"🇨🇻", group:"H" },
+  { name:"Saudi Arabia",    flag:"🇸🇦", group:"H" }, { name:"Uruguay",       flag:"🇺🇾", group:"H" },
+  // Group I
+  { name:"France",          flag:"🇫🇷", group:"I" }, { name:"Senegal",       flag:"🇸🇳", group:"I" },
+  { name:"Norway",          flag:"🇳🇴", group:"I" }, { name:"Iraq",          flag:"🇮🇶", group:"I" },
+  // Group J
+  { name:"Argentina",       flag:"🇦🇷", group:"J" }, { name:"Algeria",       flag:"🇩🇿", group:"J" },
+  { name:"Austria",         flag:"🇦🇹", group:"J" }, { name:"Jordan",        flag:"🇯🇴", group:"J" },
+  // Group K
+  { name:"Portugal",        flag:"🇵🇹", group:"K" }, { name:"DR Congo",      flag:"🇨🇩", group:"K" },
+  { name:"Uzbekistan",      flag:"🇺🇿", group:"K" }, { name:"Colombia",      flag:"🇨🇴", group:"K" },
+  // Group L
+  { name:"England",         flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", group:"L" }, { name:"Croatia",       flag:"🇭🇷", group:"L" },
+  { name:"Ghana",           flag:"🇬🇭", group:"L" }, { name:"Panama",        flag:"🇵🇦", group:"L" },
+];
+
+// Knockout stages in order
+const STAGES = [
+  { key:"group",  label:"Groups",         short:"GS"  },
+  { key:"r32",    label:"Round of 32",    short:"R32" },
+  { key:"r16",    label:"Round of 16",    short:"R16" },
+  { key:"qf",     label:"Quarter-final",  short:"QF"  },
+  { key:"sf",     label:"Semi-final",     short:"SF"  },
+  { key:"final",  label:"Final",          short:"F"   },
+  { key:"winner", label:"Champion",       short:"🏆"  },
+];
+
+const STAGE_KEYS   = STAGES.map(s => s.key);
+// Colour for each stage badge
+const STAGE_COLOR  = {
+  group:"#2d5c3e", r32:"#1e4060", r16:"#3a2a60",
+  qf:"#5c3a00", sf:"#5c1a1a", final:"#7a4500", winner:"#5c4500"
+};
+const STAGE_TEXT   = {
+  group:"#7dc9a0", r32:"#7ab8e8", r16:"#b09ade",
+  qf:"#f0a040", sf:"#e07070", final:"#f0c040", winner:"#f0c040"
+};
+
+function stageAfter(key) {
+  const i = STAGE_KEYS.indexOf(key);
+  return i >= 0 && i < STAGE_KEYS.length - 1 ? STAGE_KEYS[i+1] : key;
+}
+
+function isEliminated(stage) { return stage === "eliminated"; }
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function makeDraw(playerNames) {
+  const shuffled = shuffle(ALL_TEAMS);
+  const per = Math.floor(shuffled.length / playerNames.length);
+  const players = playerNames.map((name,i) => ({
+    name,
+    teams: shuffled.slice(i*per, i*per+per).map(t => ({
+      ...t, stage:"group", groupPoints:0
+    })),
+  }));
+  const leftover = shuffled.slice(playerNames.length * per);
+  return { players, leftover };
+}
+
+function calcPoints(player) {
+  // Group stage points only; knockout progress shown visually
+  return player.teams.reduce((s,t) => s + (t.groupPoints||0), 0);
+}
+
+function furthestStage(player) {
+  // Returns the best stage any of their teams has reached
+  const order = [...STAGE_KEYS, "eliminated"];
+  let best = -1;
+  player.teams.forEach(t => {
+    const i = order.indexOf(t.stage);
+    if (i > best) best = i;
+  });
+  return order[best] || "group";
+}
+
+function allEliminated(player) {
+  return player.teams.every(t => t.stage === "eliminated");
+}
+
+function timeAgo(ts) {
+  if (!ts) return "earlier";
+  const s = Math.floor((Date.now()-ts)/1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s/60)+"m ago";
+  return Math.floor(s/3600)+"h ago";
+}
+
+// ── Firebase hook ─────────────────────────────────────────────────────────────
+function useFirebase() {
+  const [ready, setReady] = useState(!!window.__firebaseReady);
+  useEffect(() => {
+    if (window.__firebaseReady) return;
+    const h = () => setReady(true);
+    window.addEventListener("firebase-ready", h);
+    return () => window.removeEventListener("firebase-ready", h);
+  }, []);
+  return ready ? window.__firebase : null;
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+function Spinner({ label }) {
+  return (
+    <div style={{ textAlign:"center", padding:"80px 20px", color:"rgba(255,255,255,0.5)" }}>
+      <div style={{ width:36, height:36, border:"3px solid rgba(255,255,255,0.1)", borderTopColor:"#f0c040", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
+      <div style={{ fontSize:13, letterSpacing:"0.08em" }}>{label||"Loading…"}</div>
+    </div>
+  );
+}
+
+// ── Stage Badge ───────────────────────────────────────────────────────────────
+function StageBadge({ stage }) {
+  if (!stage || stage === "group") return null;
+  const s = STAGES.find(s=>s.key===stage);
+  const label = s ? s.short : stage;
+  const isOut = stage === "eliminated";
+  return (
+    <span style={{
+      fontSize:10, padding:"2px 6px", borderRadius:4, marginLeft:4,
+      background: isOut ? "rgba(224,85,85,0.15)" : STAGE_COLOR[stage]||"#2d5c3e",
+      color: isOut ? "#e05555" : STAGE_TEXT[stage]||"#fff",
+      fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap",
+    }}>{isOut ? "OUT" : label}</span>
+  );
+}
+
+// ── Draw Ceremony ─────────────────────────────────────────────────────────────
+function DrawCeremony({ players, onContinue }) {
+  const [phase, setPhase]       = useState("intro");
+  const [curIdx, setCurIdx]     = useState(0);
+  const [ballSpin, setBallSpin] = useState(false);
+  const [revealed, setRevealed] = useState({});
+  const [drawOrder]             = useState(() => shuffle([...Array(players.length).keys()]));
+
+  function startDraw() { setPhase("drawing"); setCurIdx(0); setRevealed({}); revealNext(0,{},0); }
+
+  function revealNext(pi, rev, ti) {
+    if (pi >= drawOrder.length) { setPhase("done"); return; }
+    const player = players[drawOrder[pi]];
+    const cur = rev[player.name]||[];
+    setBallSpin(true);
+    setTimeout(() => {
+      setBallSpin(false);
+      const next = { ...rev, [player.name]:[...cur,ti] };
+      setRevealed(next); setCurIdx(pi);
+      if (ti+1 < player.teams.length) setTimeout(()=>revealNext(pi,next,ti+1), 280);
+      else setTimeout(()=>revealNext(pi+1,next,0), 750);
+    }, 420);
+  }
+
+  const cp = phase==="drawing" ? players[drawOrder[curIdx]] : null;
+
+  return (
+    <div>
+      {phase==="intro" && (
+        <div style={{ textAlign:"center", padding:"48px 0" }}>
+          <div style={{ fontSize:72, marginBottom:16 }}>🎱</div>
+          <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:36, color:"#f0c040", letterSpacing:"0.06em", marginBottom:8 }}>The Draw Ceremony</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:14, maxWidth:340, margin:"0 auto 32px" }}>48 teams. {players.length} players. Every allocation revealed one by one.</div>
+          <button onClick={startDraw} style={{ background:"#f0c040", color:"#0d1f17", border:"none", borderRadius:10, fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:24, letterSpacing:"0.1em", padding:"16px 40px", cursor:"pointer" }}>⚽ Start the Draw</button>
+        </div>
+      )}
+      {phase==="drawing" && cp && (
+        <div style={{ background:"#1a3a2a", border:"1px solid rgba(240,192,64,0.35)", borderRadius:10, padding:"14px 20px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+          <span style={{ fontSize:32, display:"inline-block", animation:ballSpin?"spinBall 0.4s linear":"none" }}>⚽</span>
+          <div>
+            <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.12em", color:"rgba(255,255,255,0.4)" }}>Now drawing for</div>
+            <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:28, color:"#f0c040", lineHeight:1 }}>{cp.name}</div>
+          </div>
+          <div style={{ marginLeft:"auto", textAlign:"right" }}>
+            <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase" }}>Player</div>
+            <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:22 }}>{drawOrder[curIdx]+1}/{players.length}</div>
+          </div>
+        </div>
+      )}
+      {(phase==="drawing"||phase==="done") && drawOrder.map((pi,di) => {
+        const player = players[pi];
+        const rev = revealed[player.name]||[];
+        if (!rev.length) return null;
+        const isCur = phase==="drawing" && drawOrder[curIdx]===pi;
+        const isDone = rev.length===player.teams.length;
+        return (
+          <div key={player.name} style={{ background:isCur?"rgba(240,192,64,0.07)":"#1a3a2a", border:`1px solid ${isCur?"rgba(240,192,64,0.4)":"rgba(255,255,255,0.07)"}`, borderRadius:10, padding:"14px 16px", marginBottom:12, animation:rev.length===1?"floatIn 0.4s ease":"none", transition:"border-color 0.3s,background 0.3s" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:13, color:"rgba(255,255,255,0.35)", width:20, textAlign:"center" }}>{di+1}</div>
+                <div style={{ fontWeight:700, fontSize:16 }}>{player.name}</div>
+                {isCur && <div style={{ width:8, height:8, borderRadius:"50%", background:"#f0c040", animation:"shimmer 0.8s ease-in-out infinite" }} />}
+              </div>
+              {isDone && <div style={{ fontSize:11, color:"#7dc9a0", textTransform:"uppercase", letterSpacing:"0.08em" }}>✓ Done</div>}
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {rev.map(ti => {
+                const t = player.teams[ti];
+                return <div key={t.name} style={{ background:"#2d5c3e", border:"1px solid rgba(255,255,255,0.08)", borderRadius:6, padding:"5px 10px", fontSize:13, display:"flex", alignItems:"center", gap:6, animation:"cardIn 0.35s ease both" }}><span style={{ fontSize:15 }}>{t.flag}</span><span>{t.name}</span><span style={{ fontSize:10, color:"rgba(255,255,255,0.4)" }}>Grp {t.group}</span></div>;
+              })}
+              {isCur && Array.from({length:player.teams.length-rev.length}).map((_,i)=>(
+                <div key={i} style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 10px", fontSize:13, color:"rgba(255,255,255,0.2)", minWidth:80 }}>···</div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {phase==="done" && (
+        <div style={{ textAlign:"center", padding:"28px 0 0" }}>
+          <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:32, color:"#f0c040", letterSpacing:"0.06em", marginBottom:8 }}>🎉 Draw Complete!</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:14, marginBottom:24 }}>All 48 teams drawn. May the best nation win!</div>
+          <button onClick={onContinue} style={{ background:"#f0c040", color:"#0d1f17", border:"none", borderRadius:8, fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:18, letterSpacing:"0.1em", padding:"12px 28px", cursor:"pointer" }}>🏅 Go to Standings →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Setup Screen ──────────────────────────────────────────────────────────────
+function SetupScreen({ onDone, saving }) {
+  const [names, setNames] = useState(["",""]);
+  const [err, setErr]     = useState("");
+
+  function go() {
+    const valid = names.map(n=>n.trim()).filter(Boolean);
+    if (valid.length < 2) { setErr("Add at least 2 player names."); return; }
+    const { players, leftover } = makeDraw(valid);
+    onDone(players, leftover);
+  }
+
+  const validCount = names.filter(n=>n.trim()).length;
+  const perPlayer  = Math.floor(48/Math.max(validCount,1));
+
+  return (
+    <div style={{ animation:"fadeUp 0.4s ease" }}>
+      <div style={{ textAlign:"center", padding:"48px 0 36px" }}>
+        <div style={{ fontSize:64, marginBottom:12 }}>🏆</div>
+        <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:"clamp(44px,9vw,72px)", color:"#f0c040", letterSpacing:"0.04em", lineHeight:0.9 }}>Harwich</div>
+        <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:"clamp(20px,4vw,32px)", color:"#fff", letterSpacing:"0.15em" }}>WORLD CUP 2026</div>
+        <p style={{ color:"rgba(255,255,255,0.45)", fontSize:12, letterSpacing:"0.1em", textTransform:"uppercase", marginTop:8 }}>48 teams · 12 groups · Random draw</p>
+      </div>
+      <div style={{ background:"#1a3a2a", border:"1px solid rgba(255,255,255,0.08)", borderRadius:12, padding:24, marginBottom:16 }}>
+        <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.14em", color:"#f0c040", marginBottom:6 }}>Step 1</div>
+        <div style={{ fontWeight:700, fontSize:17, marginBottom:16 }}>Who's in the sweepstake?</div>
+        {names.map((n,i) => (
+          <div key={i} style={{ display:"flex", gap:8, marginBottom:8 }}>
+            <input style={{ flex:1, background:"#0d1f17", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"10px 14px", color:"#fff", fontFamily:"Inter,sans-serif", fontSize:14, outline:"none" }}
+              placeholder={`Player ${i+1}`} value={n}
+              onChange={e=>setNames(prev=>prev.map((x,j)=>j===i?e.target.value:x))}
+              onKeyDown={e=>e.key==="Enter"&&setNames(prev=>[...prev,""])} />
+            {names.length>2 && <button onClick={()=>setNames(prev=>prev.filter((_,j)=>j!==i))} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.3)", fontSize:22, cursor:"pointer", padding:"0 8px" }}>×</button>}
+          </div>
+        ))}
+        <button onClick={()=>setNames(prev=>[...prev,""])} style={{ background:"none", border:"1px dashed rgba(255,255,255,0.2)", borderRadius:8, color:"rgba(255,255,255,0.45)", fontFamily:"Inter,sans-serif", fontSize:13, padding:"9px 16px", cursor:"pointer", width:"100%", textAlign:"left", marginTop:4 }}>+ Add another player</button>
+        {err && <div style={{ color:"#e05555", fontSize:13, marginTop:10 }}>{err}</div>}
+      </div>
+      <div style={{ background:"#1a3a2a", border:"1px solid rgba(255,255,255,0.08)", borderRadius:12, padding:18, marginBottom:20 }}>
+        <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.14em", color:"#f0c040", marginBottom:6 }}>How points work</div>
+        <div style={{ color:"rgba(255,255,255,0.6)", fontSize:13, lineHeight:1.8 }}>
+          <strong style={{ color:"#fff" }}>Group stage:</strong> Win = 3pts · Draw = 1pt · Loss = 0pts<br/>
+          <strong style={{ color:"#fff" }}>Knockout rounds:</strong> Teams are tracked visually as they progress — R32 → R16 → QF → SF → Final → 🏆<br/>
+          <strong style={{ color:"#fff" }}>Eliminated teams</strong> turn red on the leaderboard.
+        </div>
+      </div>
+      <button onClick={go} disabled={saving} style={{ width:"100%", background:saving?"rgba(240,192,64,0.4)":"#f0c040", color:"#0d1f17", border:"none", borderRadius:10, fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:26, letterSpacing:"0.1em", padding:18, cursor:saving?"not-allowed":"pointer" }}>
+        {saving?"Saving draw…":"🎲 Run the Draw"}
+      </button>
+    </div>
+  );
+}
+
+// ── News Feed ─────────────────────────────────────────────────────────────────
+function NewsFeed() {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(false);
+
+  useEffect(() => {
+    const url = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent("https://news.google.com/rss/search?q=FIFA+World+Cup+2026&hl=en-GB&gl=GB&ceid=GB:en");
+    fetch(url).then(r=>r.json()).then(data => {
+      if (data.items&&data.items.length>0) { setArticles(data.items.slice(0,15)); }
+      else { setError(true); }
+      setLoading(false);
+    }).catch(()=>{ setError(true); setLoading(false); });
+  }, []);
+
+  function timeSince(d) {
+    const s = Math.floor((Date.now()-new Date(d))/1000);
+    if (s<3600) return Math.floor(s/60)+"m ago";
+    if (s<86400) return Math.floor(s/3600)+"h ago";
+    return Math.floor(s/86400)+"d ago";
+  }
+
+  if (loading) return <Spinner label="Loading latest news…" />;
+  if (error) return <div style={{ background:"#1a3a2a", borderRadius:10, padding:24, textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:14 }}><div style={{ fontSize:36, marginBottom:12 }}>📡</div>Could not load news right now. Try again later.</div>;
+
+  return (
+    <div>
+      {articles.map((a,i) => (
+        <a key={i} href={a.link} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit" }}>
+          <div style={{ background:"#1a3a2a", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"14px 16px", marginBottom:10, transition:"border-color 0.2s" }}
+            onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(240,192,64,0.4)"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:600, fontSize:14, lineHeight:1.4, marginBottom:6 }}>{a.title}</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{a.source?.name||"News"} · {timeSince(a.pubDate)}</div>
+              </div>
+              <div style={{ color:"#f0c040", fontSize:18, flexShrink:0, marginTop:2 }}>→</div>
+            </div>
+          </div>
+        </a>
+      ))}
+      <div style={{ textAlign:"center", fontSize:12, color:"rgba(255,255,255,0.3)", marginTop:8 }}>Tap any headline to read the full story</div>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+function App() {
+  const fb = useFirebase();
+  const [screen, setScreen]           = useState("loading");
+  const [saving, setSaving]           = useState(false);
+  const [players, setPlayers]         = useState([]);
+  const [leftover, setLeftover]       = useState([]);
+  const [feed, setFeed]               = useState([]);
+  const [view, setView]               = useState("leaderboard");
+  const [flash, setFlash]             = useState(null);
+  const [adminPin, setAdminPin]       = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [editTeam, setEditTeam]       = useState(null);
+  // Edit state
+  const [editGroupPts, setEditGroupPts] = useState(0);
+  const [editStage, setEditStage]       = useState("group");
+
+  useEffect(() => {
+    if (!fb) return;
+    fb.onValue("sweepstake", data => {
+      if (data&&data.players&&data.players.length>0) {
+        setPlayers(data.players);
+        setLeftover(data.leftover||[]);
+        setFeed(data.feed||[]);
+        setView("leaderboard");
+        setScreen("main");
+      } else {
+        setScreen("setup");
+      }
+    });
+  }, [fb]);
+
+  async function handleSetupDone(ps, lft) {
+    setSaving(true);
+    const f = [{ id:Date.now(), text:"🎱 The Harwich draw is in — let the games begin!", ts:Date.now() }];
+    await fb.set("sweepstake", { players:ps, leftover:lft, feed:f });
+    setSaving(false);
+  }
+
+  async function handleAdminUpdate() {
+    if (!editTeam) return;
+    const updated = players.map(p => ({
+      ...p,
+      teams: p.teams.map(t =>
+        t.name===editTeam.teamName && p.name===editTeam.playerName
+          ? { ...t, groupPoints:parseInt(editGroupPts)||0, stage:editStage } : t
+      )
+    }));
+
+    const stageInfo = STAGES.find(s=>s.key===editStage);
+    const stageLabel = editStage==="eliminated" ? "eliminated" : stageInfo ? `through to the ${stageInfo.label}` : editStage;
+    const feedItem = {
+      id: Date.now(), ts: Date.now(),
+      text: editStage==="eliminated"
+        ? `❌ ${editTeam.teamName} eliminated — commiserations ${editTeam.playerName}`
+        : editStage==="winner"
+        ? `🏆 ${editTeam.teamName} are WORLD CHAMPIONS! ${editTeam.playerName} wins the sweepstake!`
+        : `📊 ${editTeam.teamName} ${stageLabel} — ${editTeam.playerName}`,
+    };
+    setEditTeam(null);
+    await fb.set("sweepstake", { players:updated, leftover, feed:[feedItem,...feed.slice(0,9)] });
+  }
+
+  async function handleReset() {
+    if (!confirm("Reset everything and start a new draw?")) return;
+    await fb.set("sweepstake", { players:[], leftover:[], feed:[] });
+  }
+
+  useEffect(() => {
+    if (!feed.length) return;
+    setFlash(feed[0].id);
+    const t = setTimeout(()=>setFlash(null), 2500);
+    return ()=>clearTimeout(t);
+  }, [feed[0]?.id]);
+
+  const sorted = [...players].sort((a,b) => {
+    // Sort by: not all eliminated first, then by points
+    const aOut = allEliminated(a);
+    const bOut = allEliminated(b);
+    if (aOut && !bOut) return 1;
+    if (!aOut && bOut) return -1;
+    return calcPoints(b)-calcPoints(a);
+  });
+
+  const s = {
+    wrap:    { maxWidth:860, margin:"0 auto", padding:"0 16px 80px" },
+    ticker:  { background:"#f0c040", color:"#0d1f17", padding:"8px 16px", fontWeight:700, fontSize:13, display:"flex", alignItems:"center", gap:10, borderRadius:8, marginBottom:20, overflow:"hidden" },
+    dot:     { width:8, height:8, borderRadius:"50%", background:"#e03030", flexShrink:0, animation:"blink 1s ease-in-out infinite" },
+    tabs:    { display:"flex", gap:3, marginBottom:24, background:"#1a3a2a", borderRadius:10, padding:4 },
+    tab:     a=>({ flex:1, padding:"9px 2px", borderRadius:7, border:"none", cursor:"pointer", fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:12, letterSpacing:"0.04em", background:a?"#f0c040":"transparent", color:a?"#0d1f17":"rgba(255,255,255,0.5)", transition:"all 0.2s", whiteSpace:"nowrap" }),
+    card:    { background:"#1a3a2a", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:16, marginBottom:12 },
+    input:   { background:"#0d1f17", border:"1px solid rgba(255,255,255,0.15)", borderRadius:6, padding:"8px 12px", color:"#fff", fontSize:14, fontFamily:"Inter,sans-serif", width:"100%", outline:"none" },
+    btnGold: { background:"#f0c040", color:"#0d1f17", border:"none", borderRadius:8, padding:"10px 20px", fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:17, letterSpacing:"0.08em", cursor:"pointer" },
+    btnOut:  { background:"none", color:"rgba(255,255,255,0.5)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, padding:"10px 20px", fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:17, cursor:"pointer" },
+    modal:   { position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:16 },
+    modalBox:{ background:"#1a3a2a", border:"1px solid rgba(255,255,255,0.12)", borderRadius:12, padding:24, width:"100%", maxWidth:400 },
+  };
+
+  const TABS = [["ceremony","🎱 Draw"],["leaderboard","🏅 Standings"],["teams","🌍 Teams"],["news","📰 News"],["admin","⚙️ Admin"]];
+
+  if (!fb||screen==="loading") return <div style={s.wrap}><Spinner label="Connecting to database…" /></div>;
+  if (screen==="setup") return <div style={s.wrap}><SetupScreen onDone={handleSetupDone} saving={saving} /></div>;
+
+  return (
+    <div style={s.wrap}>
+      <header style={{ textAlign:"center", padding:"28px 0 20px" }}>
+        <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:"clamp(40px,8vw,66px)", color:"#f0c040", letterSpacing:"0.04em", lineHeight:0.9 }}>🏆 Harwich</div>
+        <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:"clamp(18px,3.5vw,28px)", color:"#fff", letterSpacing:"0.15em" }}>WORLD CUP 2026</div>
+        <p style={{ color:"rgba(255,255,255,0.4)", fontSize:11, letterSpacing:"0.1em", textTransform:"uppercase", marginTop:6 }}>{players.length} players · 48 teams · Live</p>
+      </header>
+
+      {feed.length>0 && (
+        <div style={s.ticker}>
+          <div style={s.dot} />
+          <span style={{ fontFamily:"Inter,sans-serif", fontWeight:600, flexShrink:0 }}>LIVE —</span>
+          <span style={{ fontWeight:400, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{feed[0].text}</span>
+        </div>
+      )}
+
+      <div style={s.tabs}>
+        {TABS.map(([v,label])=><button key={v} style={s.tab(view===v)} onClick={()=>setView(v)}>{label}</button>)}
+      </div>
+
+      {/* DRAW */}
+      {view==="ceremony" && <DrawCeremony players={players} onContinue={()=>setView("leaderboard")} />}
+
+      {/* LEADERBOARD */}
+      {view==="leaderboard" && (
+        <div>
+          {sorted.map((player,i) => {
+            const out = allEliminated(player);
+            const pts = calcPoints(player);
+            return (
+              <div key={player.name} style={{ display:"flex", alignItems:"center", gap:12, background:out?"rgba(224,85,85,0.07)":i===0?"rgba(240,192,64,0.1)":"#1a3a2a", border:`1px solid ${out?"rgba(224,85,85,0.25)":i===0?"rgba(240,192,64,0.4)":"rgba(255,255,255,0.06)"}`, borderRadius:10, padding:"12px 16px", marginBottom:8, transition:"all 0.4s" }}>
+                <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:22, color:out?"rgba(224,85,85,0.5)":i===0?"#f0c040":"rgba(255,255,255,0.3)", width:28, flexShrink:0, textAlign:"center" }}>
+                  {out ? "💀" : i+1}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:15, color:out?"rgba(224,85,85,0.8)":"#fff" }}>{player.name}</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                    {player.teams.map(t => {
+                      const isOut = t.stage==="eliminated";
+                      return (
+                        <span key={t.name} style={{ background:isOut?"rgba(224,85,85,0.1)":STAGE_COLOR[t.stage]||"#2d5c3e", border:`1px solid ${isOut?"rgba(224,85,85,0.3)":"rgba(255,255,255,0.08)"}`, borderRadius:4, padding:"2px 7px", fontSize:12, display:"inline-flex", alignItems:"center", gap:3, opacity:isOut?0.5:1 }}>
+                          <span style={{ textDecoration:isOut?"line-through":"none", color:isOut?"#e05555":"inherit" }}>{t.flag} {t.name}</span>
+                          <StageBadge stage={t.stage} />
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:22, color:out?"rgba(224,85,85,0.6)":"#f0c040" }}>{pts}</div>
+                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.08em" }}>pts</div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Stage key */}
+          <div style={{ ...s.card, marginTop:8 }}>
+            <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.12em", color:"rgba(255,255,255,0.4)", marginBottom:10 }}>Stage key</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {STAGES.filter(s=>s.key!=="group").map(st=>(
+                <span key={st.key} style={{ background:STAGE_COLOR[st.key], borderRadius:4, padding:"3px 8px", fontSize:12, color:STAGE_TEXT[st.key] }}>{st.short} = {st.label}</span>
+              ))}
+              <span style={{ background:"rgba(224,85,85,0.15)", borderRadius:4, padding:"3px 8px", fontSize:12, color:"#e05555" }}>OUT = Eliminated</span>
+            </div>
+          </div>
+
+          {leftover.length>0 && (
+            <div style={{ ...s.card, marginTop:8 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                <span style={{ fontSize:18 }}>🎗️</span>
+                <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:16, color:"#f0c040", letterSpacing:"0.06em" }}>Charity Pot</div>
+              </div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:10 }}>If any of these teams win a prize, it goes to charity!</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {leftover.map(t=><span key={t.name} style={{ background:"rgba(240,192,64,0.08)", border:"1px solid rgba(240,192,64,0.2)", borderRadius:5, padding:"4px 10px", fontSize:12, color:"rgba(240,192,64,0.7)" }}>{t.flag} {t.name}</span>)}
+              </div>
+            </div>
+          )}
+
+          {feed.length>0 && (
+            <div style={{ marginTop:28 }}>
+              <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.12em", color:"rgba(255,255,255,0.4)", marginBottom:12 }}>Feed</div>
+              {feed.map(item=>(
+                <div key={item.id} style={{ padding:"10px 14px", borderRadius:8, background:item.id===flash?"rgba(240,192,64,0.12)":"#1a3a2a", border:`1px solid ${item.id===flash?"rgba(240,192,64,0.4)":"rgba(255,255,255,0.06)"}`, fontSize:13, marginBottom:8, transition:"all 0.5s" }}>
+                  <div>{item.text}</div>
+                  <div style={{ color:"rgba(255,255,255,0.35)", fontSize:11, marginTop:3 }}>{timeAgo(item.ts)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ALL TEAMS */}
+      {view==="teams" && (
+        <div>
+          {players.map(player => {
+            const out = allEliminated(player);
+            return (
+              <div key={player.name} style={{ ...s.card, border:`1px solid ${out?"rgba(224,85,85,0.25)":"rgba(255,255,255,0.08)"}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                  <div style={{ fontWeight:700, fontSize:16, color:out?"rgba(224,85,85,0.8)":"#fff" }}>{out?"💀 ":""}{player.name}</div>
+                  <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:20, color:out?"rgba(224,85,85,0.6)":"#f0c040" }}>{calcPoints(player)} pts</div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:6 }}>
+                  {player.teams.map(t => {
+                    const isOut = t.stage==="eliminated";
+                    return (
+                      <div key={t.name} style={{ background:isOut?"rgba(224,85,85,0.08)":STAGE_COLOR[t.stage]||"#2d5c3e", border:`1px solid ${isOut?"rgba(224,85,85,0.25)":"rgba(255,255,255,0.08)"}`, borderRadius:6, padding:"6px 10px", fontSize:13, opacity:isOut?0.5:1, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:16 }}>{t.flag}</span>
+                        <span style={{ textDecoration:isOut?"line-through":"none", color:isOut?"#e05555":"inherit" }}>{t.name}</span>
+                        <StageBadge stage={t.stage} />
+                        {t.groupPoints>0 && <span style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginLeft:"auto" }}>{t.groupPoints}pt</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* NEWS */}
+      {view==="news" && (
+        <div>
+          <div style={{ background:"#1a3a2a", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:16, marginBottom:16 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#e03030", animation:"blink 1s ease-in-out infinite", flexShrink:0 }} />
+              <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:20, color:"#f0c040", letterSpacing:"0.06em" }}>Live World Cup News</div>
+            </div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>Latest headlines from FIFA World Cup 2026</div>
+          </div>
+          <NewsFeed />
+        </div>
+      )}
+
+      {/* ADMIN */}
+      {view==="admin" && (
+        <div>
+          <div style={{ background:"rgba(240,192,64,0.08)", border:"1px solid rgba(240,192,64,0.2)", borderRadius:8, padding:"12px 16px", fontSize:13, color:"rgba(255,255,255,0.65)", marginBottom:20, lineHeight:1.65 }}>
+            🔐 <strong style={{ color:"#f0c040" }}>Admin panel.</strong> Update group points and knockout stage progress. All saves sync instantly to everyone.
+          </div>
+          {!adminUnlocked ? (
+            <div style={s.card}>
+              <div style={{ marginBottom:12, fontWeight:600 }}>Enter your admin PIN</div>
+              <input style={{ ...s.input, marginBottom:12 }} type="password" placeholder="PIN"
+                value={adminPin} onChange={e=>setAdminPin(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&adminPin===ADMIN_PIN&&setAdminUnlocked(true)} />
+              <button style={s.btnGold} onClick={()=>{ if(adminPin===ADMIN_PIN) setAdminUnlocked(true); else setAdminPin(""); }}>Unlock</button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div style={{ fontWeight:700 }}>Update team progress</div>
+                <button style={s.btnOut} onClick={()=>setAdminUnlocked(false)}>🔒 Lock</button>
+              </div>
+              {players.map(player => (
+                <div key={player.name} style={s.card}>
+                  <div style={{ fontWeight:700, marginBottom:8, color:"#f0c040" }}>{player.name}</div>
+                  {player.teams.map(t => (
+                    <div key={t.name} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:"1px solid rgba(255,255,255,0.05)", cursor:"pointer" }}
+                      onClick={()=>{ setEditTeam({playerName:player.name,teamName:t.name}); setEditGroupPts(t.groupPoints||0); setEditStage(t.stage||"group"); }}>
+                      <span style={{ fontSize:15 }}>{t.flag}</span>
+                      <span style={{ flex:1, fontSize:13, color:t.stage==="eliminated"?"rgba(224,85,85,0.7)":"inherit", textDecoration:t.stage==="eliminated"?"line-through":"none" }}>{t.name}</span>
+                      <span style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{t.groupPoints||0}pt</span>
+                      <StageBadge stage={t.stage||"group"} />
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div style={{ ...s.card, borderColor:"rgba(224,85,85,0.2)", marginTop:8 }}>
+                <div style={{ fontWeight:700, marginBottom:8, color:"rgba(255,255,255,0.5)" }}>Danger zone</div>
+                <button style={{ ...s.btnOut, fontSize:14, borderColor:"rgba(224,85,85,0.3)", color:"#e05555" }} onClick={handleReset}>↺ Reset & start new draw</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editTeam && (
+        <div style={s.modal} onClick={()=>setEditTeam(null)}>
+          <div style={s.modalBox} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:24, color:"#f0c040", marginBottom:4 }}>Update Team</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>{editTeam.teamName} · {editTeam.playerName}</div>
+
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:"rgba(255,255,255,0.5)", display:"block", marginBottom:6 }}>Group stage points (wins × 3, draws × 1)</label>
+              <input style={s.input} type="number" min="0" max="9" value={editGroupPts} onChange={e=>setEditGroupPts(e.target.value)} />
+            </div>
+
+            <div style={{ marginBottom:20 }}>
+              <label style={{ fontSize:12, color:"rgba(255,255,255,0.5)", display:"block", marginBottom:8 }}>Tournament stage</label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+                {[...STAGES, {key:"eliminated",label:"Eliminated",short:"OUT"}].map(st => (
+                  <button key={st.key} onClick={()=>setEditStage(st.key)} style={{
+                    padding:"8px 6px", borderRadius:7, border:`2px solid ${editStage===st.key?(st.key==="eliminated"?"#e05555":"#f0c040"):"rgba(255,255,255,0.1)"}`,
+                    background:editStage===st.key?(st.key==="eliminated"?"rgba(224,85,85,0.2)":"rgba(240,192,64,0.15)"):"transparent",
+                    color:editStage===st.key?(st.key==="eliminated"?"#e05555":"#f0c040"):"rgba(255,255,255,0.5)",
+                    cursor:"pointer", fontSize:13, fontWeight:600,
+                  }}>{st.key==="eliminated"?"❌ Out":st.key==="winner"?"🏆 "+st.label:st.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:8 }}>
+              <button style={s.btnGold} onClick={handleAdminUpdate}>Save & sync</button>
+              <button style={s.btnOut} onClick={()=>setEditTeam(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
