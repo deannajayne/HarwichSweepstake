@@ -417,7 +417,7 @@ function App() {
   const [screen, setScreen]           = useState("loading");
   const [saving, setSaving]           = useState(false);
   const [players, setPlayers]         = useState([]);
-  const [leftover, setLeftover]       = useState([]);
+  const [leftover, setLeftover]       = useState([]);  // each item: {name, flag, group, groupPoints, stage}
   const [feed, setFeed]               = useState([]);
   const [view, setView]               = useState("leaderboard");
   const [flash, setFlash]             = useState(null);
@@ -426,6 +426,7 @@ function App() {
   const [editTeam, setEditTeam]       = useState(null);
   // Edit state
   const [editGroupPts, setEditGroupPts] = useState(0);
+  const [editCharity, setEditCharity]   = useState(null); // {teamName} if editing charity team
   const [editStage, setEditStage]       = useState("group");
 
   useEffect(() => {
@@ -461,17 +462,57 @@ function App() {
     }));
 
     const stageInfo = STAGES.find(s=>s.key===editStage);
-    const stageLabel = editStage==="eliminated" ? "eliminated" : stageInfo ? `through to the ${stageInfo.label}` : editStage;
+    const prevTeam = players.find(p=>p.name===editTeam.playerName)?.teams.find(t=>t.name===editTeam.teamName);
+    const prevPoints = prevTeam?.groupPoints || 0;
+    const pointsDiff = (parseInt(editGroupPts)||0) - prevPoints;
     const feedItem = {
       id: Date.now(), ts: Date.now(),
       text: editStage==="eliminated"
         ? `❌ ${editTeam.teamName} eliminated — commiserations ${editTeam.playerName}`
         : editStage==="winner"
         ? `🏆 ${editTeam.teamName} are WORLD CHAMPIONS! ${editTeam.playerName} wins the sweepstake!`
-        : `📊 ${editTeam.teamName} ${stageLabel} — ${editTeam.playerName}`,
+        : editStage==="r32"
+        ? `🎉 ${editTeam.teamName} through to the Round of 32! Great news for ${editTeam.playerName}`
+        : editStage==="r16"
+        ? `🎉 ${editTeam.teamName} through to the Round of 16! ${editTeam.playerName} still in it!`
+        : editStage==="qf"
+        ? `🔥 ${editTeam.teamName} into the Quarter Finals! ${editTeam.playerName} loving life!`
+        : editStage==="sf"
+        ? `🔥 ${editTeam.teamName} into the Semi Finals! Can ${editTeam.playerName} go all the way?!`
+        : editStage==="final"
+        ? `😱 ${editTeam.teamName} are in the FINAL! ${editTeam.playerName} one step from glory!`
+        : pointsDiff === 3
+        ? `⚽ ${editTeam.teamName} win! ${editTeam.playerName} picks up 3 points`
+        : pointsDiff === 1
+        ? `🤝 ${editTeam.teamName} draw! ${editTeam.playerName} picks up 1 point`
+        : `📊 ${editTeam.teamName} points updated for ${editTeam.playerName}`,
     };
     setEditTeam(null);
     await fb.set("sweepstake", { players:updated, leftover, feed:[feedItem,...feed.slice(0,9)] });
+  }
+
+  async function handleCharityUpdate() {
+    if (!editCharity) return;
+    const updatedLeftover = leftover.map(t =>
+      t.name === editCharity.teamName
+        ? { ...t, groupPoints: parseInt(editGroupPts)||0, stage: editStage }
+        : t
+    );
+    const pointsDiff = (parseInt(editGroupPts)||0) - (leftover.find(t=>t.name===editCharity.teamName)?.groupPoints||0);
+    const feedItem = {
+      id: Date.now(), ts: Date.now(),
+      text: editStage==="eliminated"
+        ? `❌ ${editCharity.teamName} eliminated — charity pot out!`
+        : editStage==="winner"
+        ? `🏆 ${editCharity.teamName} are WORLD CHAMPIONS — charity wins the sweepstake!`
+        : pointsDiff === 3
+        ? `⚽ ${editCharity.teamName} win! 3 points for the charity pot`
+        : pointsDiff === 1
+        ? `🤝 ${editCharity.teamName} draw! 1 point for the charity pot`
+        : `📊 Charity pot updated`,
+    };
+    setEditCharity(null);
+    await fb.set("sweepstake", { players, leftover: updatedLeftover, feed:[feedItem,...feed.slice(0,9)] });
   }
 
   async function handleReset() {
@@ -583,13 +624,23 @@ function App() {
 
           {leftover.length>0 && (
             <div style={{ ...s.card, marginTop:8 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                <span style={{ fontSize:18 }}>🎗️</span>
-                <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:16, color:"#f0c040", letterSpacing:"0.06em" }}>Charity Pot</div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:18 }}>🎗️</span>
+                  <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:16, color:"#f0c040", letterSpacing:"0.06em" }}>Charity Pot</div>
+                </div>
+                <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:20, color:"#f0c040" }}>{leftover.reduce((s,t)=>s+(t.groupPoints||0),0)} pts</div>
               </div>
               <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:10 }}>If any of these teams win a prize, it goes to charity!</div>
               <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                {leftover.map(t=><span key={t.name} style={{ background:"rgba(240,192,64,0.08)", border:"1px solid rgba(240,192,64,0.2)", borderRadius:5, padding:"4px 10px", fontSize:12, color:"rgba(240,192,64,0.7)" }}>{t.flag} {t.name}</span>)}
+                {leftover.map(t => {
+                  const isOut = t.stage==="eliminated";
+                  return <span key={t.name} style={{ background:isOut?"rgba(224,85,85,0.1)":"rgba(240,192,64,0.08)", border:`1px solid ${isOut?"rgba(224,85,85,0.3)":"rgba(240,192,64,0.2)"}`, borderRadius:5, padding:"4px 10px", fontSize:12, color:isOut?"rgba(224,85,85,0.6)":"rgba(240,192,64,0.7)", opacity:isOut?0.5:1, display:"inline-flex", alignItems:"center", gap:4 }}>
+                    <span style={{ textDecoration:isOut?"line-through":"none" }}>{t.flag} {t.name}</span>
+                    {t.groupPoints>0 && <span style={{ fontSize:10, color:"rgba(255,255,255,0.4)" }}> {t.groupPoints}pt</span>}
+                    <StageBadge stage={t.stage} />
+                  </span>;
+                })}
               </div>
             </div>
           )}
@@ -692,6 +743,32 @@ function App() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Charity edit modal */}
+      {editCharity && (
+        <div style={s.modal} onClick={()=>setEditCharity(null)}>
+          <div style={s.modalBox} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontFamily:"'Bebas Neue','Arial Black',sans-serif", fontSize:24, color:"#f0c040", marginBottom:4 }}>🎗️ Charity Pot</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>{editCharity.teamName}</div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:"rgba(255,255,255,0.5)", display:"block", marginBottom:6 }}>Group stage points</label>
+              <input style={s.input} type="number" min="0" max="9" value={editGroupPts} onChange={e=>setEditGroupPts(e.target.value)} />
+            </div>
+            <div style={{ marginBottom:20 }}>
+              <label style={{ fontSize:12, color:"rgba(255,255,255,0.5)", display:"block", marginBottom:8 }}>Tournament stage</label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+                {[...STAGES, {key:"eliminated",label:"Eliminated",short:"OUT"}].map(st => (
+                  <button key={st.key} onClick={()=>setEditStage(st.key)} style={{ padding:"8px 6px", borderRadius:7, border:`2px solid ${editStage===st.key?(st.key==="eliminated"?"#e05555":"#f0c040"):"rgba(255,255,255,0.1)"}`, background:editStage===st.key?(st.key==="eliminated"?"rgba(224,85,85,0.2)":"rgba(240,192,64,0.15)"):"transparent", color:editStage===st.key?(st.key==="eliminated"?"#e05555":"#f0c040"):"rgba(255,255,255,0.5)", cursor:"pointer", fontSize:13, fontWeight:600 }}>{st.key==="eliminated"?"❌ Out":st.key==="winner"?"🏆 "+st.label:st.label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button style={s.btnGold} onClick={handleCharityUpdate}>Save & sync</button>
+              <button style={s.btnOut} onClick={()=>setEditCharity(null)}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
 
